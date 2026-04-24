@@ -3,46 +3,11 @@ import './App.css';
 
 const FILMS = [
   {
-    id: 'darkvu-20',
-    name: 'DarkVu 20 Ceramic',
-    desc: 'Deep charcoal tint, near-black windows, sleek modern look',
-    swatch: 'linear-gradient(135deg, #080808, #1c1c1c)',
-    swatchBorder: '#2a2a2a',
-  },
-  {
-    id: 'coolvu-35',
-    name: 'CoolVu 35 Ceramic',
-    desc: 'Medium charcoal, balanced privacy + light',
-    swatch: 'linear-gradient(135deg, #1e1e1e, #383838)',
-    swatchBorder: '#444',
-  },
-  {
-    id: 'coolvu-50',
-    name: 'CoolVu 50 Ceramic',
-    desc: 'Light smoke tint, barely noticeable, subtle upgrade',
-    swatch: 'linear-gradient(135deg, #4a4a4a, #6e6e6e)',
-    swatchBorder: '#777',
-  },
-  {
-    id: 'carbon-bronze',
-    name: 'CoolVu Carbon Bronze',
-    desc: 'Warm bronze tone, classic elegant look',
-    swatch: 'linear-gradient(135deg, #5c3d10, #9a6820)',
-    swatchBorder: '#7a5010',
-  },
-  {
-    id: 'reflective-silver',
-    name: 'Reflective Silver',
-    desc: 'Mirror-like exterior, high heat rejection',
-    swatch: 'linear-gradient(135deg, #8090a0, #c5d5e5)',
-    swatchBorder: '#8899aa',
-  },
-  {
-    id: 'clear-safety',
-    name: 'Clear Safety Film',
-    desc: 'No visible tint, invisible protection',
-    swatch: 'linear-gradient(135deg, rgba(100,180,255,0.12), rgba(200,230,255,0.22))',
-    swatchBorder: '#1e3a5f',
+    id: 'dual-reflective-15',
+    name: 'Dual Reflective 15',
+    desc: 'Deep charcoal-silver mirror finish — maximum privacy, premium look',
+    swatch: 'linear-gradient(135deg, #1a1e22, #4a5560)',
+    swatchBorder: '#5a6570',
   },
 ];
 

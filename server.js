@@ -17,54 +17,20 @@ const upload = multer({
 });
 
 const FILM_PROMPTS = {
-  'darkvu-20': [
-    'You are editing a photo of a residential home.',
-    'Apply realistic deep charcoal ceramic window tint film (DarkVu 20) to ALL visible windows in the image.',
-    'The windows should appear nearly black and nearly opaque from the outside — similar to very dark limousine tint.',
-    'The film has a sleek, modern appearance with a slight sheen.',
-    'Do not change anything else: keep the house walls, roof, landscaping, driveway, sky, and all surroundings exactly the same.',
-    'Photorealistic result — it should look like the film was professionally installed.',
-  ].join(' '),
+  'dual-reflective-15': `Transform only the window glass on this home to showcase Dual Reflective 15 solar window film.
 
-  'coolvu-35': [
-    'You are editing a photo of a residential home.',
-    'Apply realistic medium charcoal ceramic window tint film (CoolVu 35) to ALL visible windows in the image.',
-    'The windows should appear dark gray/charcoal from the outside — good privacy while still allowing some diffused light.',
-    'Do not change anything else: keep the house walls, roof, landscaping, driveway, sky, and all surroundings exactly the same.',
-    'Photorealistic result — it should look like the film was professionally installed.',
-  ].join(' '),
+Create a premium dark reflective glass appearance with a sleek charcoal-silver mirror finish. The windows should look noticeably upgraded, modern, and high-performance, creating strong daytime privacy from the exterior.
 
-  'coolvu-50': [
-    'You are editing a photo of a residential home.',
-    'Apply realistic light smoke ceramic window tint film (CoolVu 50) to ALL visible windows in the image.',
-    'The windows should appear lightly tinted with a subtle gray/smoke effect — the tint is noticeable but still relatively transparent.',
-    'Do not change anything else: keep the house walls, roof, landscaping, driveway, sky, and all surroundings exactly the same.',
-    'Photorealistic result — it should look like the film was professionally installed.',
-  ].join(' '),
+The finished glass should have:
+- Deep charcoal-gray tint
+- Reflective silver-black surface
+- Clear mirrored reflections of sky, clouds, trees, lawn, and surrounding homes
+- Very low interior visibility from outside
+- Strong contrast with white or light-colored window frames
+- Consistent darkness and reflectivity on all window panes
+- No haze, no distortion, no uneven patches
 
-  'carbon-bronze': [
-    'You are editing a photo of a residential home.',
-    'Apply realistic warm bronze carbon window tint film to ALL visible windows in the image.',
-    'The windows should appear with a warm amber/bronze tone — a classic, elegant look that gives the glass a golden-brown color cast.',
-    'Do not change anything else: keep the house walls, roof, landscaping, driveway, sky, and all surroundings exactly the same.',
-    'Photorealistic result — it should look like the film was professionally installed.',
-  ].join(' '),
-
-  'reflective-silver': [
-    'You are editing a photo of a residential home.',
-    'Apply realistic mirror-like reflective silver window film to ALL visible windows in the image.',
-    'The windows should appear highly reflective like polished mirrors from the outside, showing soft reflections of the sky and surroundings.',
-    'Do not change anything else: keep the house walls, roof, landscaping, driveway, sky, and all surroundings exactly the same.',
-    'Photorealistic result — it should look like the film was professionally installed.',
-  ].join(' '),
-
-  'clear-safety': [
-    'You are editing a photo of a residential home.',
-    'Apply clear safety window film to ALL visible windows in the image.',
-    'The windows should appear crystal clear with absolutely no visible tint — maintaining the natural appearance of the glass.',
-    'Do not change anything else: keep the house walls, roof, landscaping, driveway, sky, and all surroundings exactly the same.',
-    'Photorealistic result — it should look like the film was professionally installed.',
-  ].join(' '),
+Do not make the glass pure black. Do not make it blue. Do not make it bronze. Do not change the house, trim, roof, landscaping, lighting, vehicles, or background. Keep the image photorealistic, like a professional before-and-after preview for a residential window tinting company.`,
 };
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
