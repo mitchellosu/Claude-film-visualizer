@@ -16,6 +16,20 @@ const FILMS = [
     swatch: 'linear-gradient(135deg, #1c1a18, #3a3228)',
     swatchBorder: '#4a4035',
   },
+  {
+    id: 'dual-reflective-25',
+    name: 'Dual Reflective 25',
+    desc: 'Medium charcoal-silver mirror finish — balanced privacy with natural brightness',
+    swatch: 'linear-gradient(135deg, #252a30, #5a6878)',
+    swatchBorder: '#6a7888',
+  },
+  {
+    id: 'ceramic-20',
+    name: 'Ceramic 20',
+    desc: 'Neutral charcoal-gray, moderately dark, realistic daytime privacy',
+    swatch: 'linear-gradient(135deg, #282828, #505055)',
+    swatchBorder: '#606065',
+  },
 ];
 
 export default function App() {
