@@ -17,6 +17,13 @@ const FILMS = [
     swatchBorder: '#4a4035',
   },
   {
+    id: 'darkvu-20',
+    name: 'DarkVu 20',
+    desc: 'Medium charcoal ceramic, slight warm bronze, soft reflectivity — lighter than DarkVu 10',
+    swatch: 'linear-gradient(135deg, #2a2620, #524840)',
+    swatchBorder: '#625850',
+  },
+  {
     id: 'dual-reflective-25',
     name: 'Dual Reflective 25',
     desc: 'Medium charcoal-silver mirror finish — balanced privacy with natural brightness',

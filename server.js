@@ -69,25 +69,69 @@ Photorealistic tinted residential glass with a slightly reflective, high-end cer
 
 Do not modify anything except the glass.`,
 
-  'dual-reflective-25': `Transform only the window glass on this home to showcase Dual Reflective 15 solar window film.
+  'dual-reflective-25': `Edit this exterior home photo to show the windows upgraded with professionally installed Dual Reflective 15 residential solar window film.
 
-Create a premium reflective glass appearance with a sleek charcoal-silver mirror finish that is slightly lighter and more refined than a typical dark tint. The windows should look upgraded and modern while maintaining a natural, balanced brightness.
+The glass should appear moderately dark, reflective, and high-contrast, similar to premium daytime privacy window film, but slightly lighter and more natural than a heavy tint. Use a neutral charcoal-gray / silver-black tone with a controlled mirror-like finish.
 
-The finished glass should have:
-- Medium-to-dark charcoal-gray tint (not deep or overly dark)
-- Reflective silver-black surface with clear mirrored reflections of sky, clouds, trees, lawn, and surrounding homes
-- Noticeable daytime privacy, but not fully blacked out
-- Slight interior depth still visible through the glass
-- Strong contrast with white or light-colored window frames
-- Consistent tint and reflectivity on all window panes
-- No haze, no distortion, no uneven patches
+Visual characteristics:
+- Approximately 20–25% visible light transmission appearance (slightly lighter than typical 15% film)
+- Medium-dark tint, not overly heavy or blacked out
+- Strong daytime privacy effect while still allowing subtle interior depth
+- Reflective exterior surface showing realistic sky, cloud, tree, lawn, and nearby home reflections
+- Slight silver-gray metallic sheen, not blue, not bronze
+- Balanced brightness — glass should not appear too dark or dense
+- Smooth, uniform tint across every pane
 
-Critical balance:
-- Reflection should be clearly visible but not overwhelm the glass — it is reflective, not a pure mirror
-- Tint should be noticeably darker than untreated glass, but lighter than a heavy 15% film
-- Interior should appear dark from outside but not completely opaque
+Frame and divider protection:
+- Window frames, mullions, and dividers must remain fully visible, sharp, and unchanged
+- Do not darken, blur, or tint the frames or grid lines
+- Maintain crisp separation between glass and frame edges
 
-Do not change the house, trim, roof, landscaping, lighting, vehicles, or background. Keep the image photorealistic, like a professional before-and-after preview for a residential window tinting company.`,
+Critical realism rules:
+- Maintain reflection + transparency + depth at the same time
+- Do NOT make the glass look too dark or overly tinted
+- Do NOT create a solid or heavy appearance
+
+Keep the home, roof, brick, landscaping, driveway, people, vehicles, and camera angle unchanged. Only change the glass areas inside the window panes.`,
+
+  'darkvu-20': `Edit only the window glass on this home to simulate professionally installed CoolVu DarkVu 20 ceramic window film.
+
+Strict masking rule:
+- Apply changes ONLY to the glass areas
+- Window frames, dividers (mullions), seals, and trim must remain completely unchanged, crisp, and fully visible
+
+Material requirement:
+- The glass must remain physically accurate (transparent + reflective), not solid, not painted, not matte
+
+Visual appearance:
+- Medium neutral charcoal tint (~25–30% VLT appearance, slightly lighter than standard 20%)
+- Very subtle warm bronze undertone (extremely slight — neutral overall with a hint of warmth)
+- Low-to-moderate reflectivity with visible natural reflections (sky, clouds, trees, surroundings)
+- Subtle glossy surface with soft specular highlights
+- Interior visibility slightly reduced but still present — faint depth visible
+
+Glass realism:
+- Maintain reflection + transparency + depth simultaneously
+- Include realistic lighting gradients across each pane
+- Keep a clean glass sheen (not flat, not dull)
+
+Critical edge detail:
+- Window frames and dividers must stay sharp, bright, and unaffected by tint
+- No color spill, no darkening, no blurring of edges
+- Maintain strong contrast between tinted glass and lighter frames
+
+Avoid:
+- Matte or flat black appearance
+- Overly dark tint
+- Tint bleeding onto frames or mullions
+- Loss of edge definition
+
+Ensure:
+- All panes evenly tinted
+- Reflections match outdoor lighting direction
+- Result looks like real installed residential window film
+
+Do not change anything except the glass.`,
 
   'ceramic-20': `Edit this exterior home photo to show the windows upgraded with professionally installed Dual Reflective 15 residential solar window film.
 
