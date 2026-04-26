@@ -9,6 +9,13 @@ const FILMS = [
     swatch: 'linear-gradient(135deg, #1a1e22, #4a5560)',
     swatchBorder: '#5a6570',
   },
+  {
+    id: 'darkvu-10',
+    name: 'DarkVu 10',
+    desc: 'Deep charcoal ceramic, subtle warm bronze tone, glossy reflective finish',
+    swatch: 'linear-gradient(135deg, #1c1a18, #3a3228)',
+    swatchBorder: '#4a4035',
+  },
 ];
 
 export default function App() {

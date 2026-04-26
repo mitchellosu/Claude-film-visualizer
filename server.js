@@ -31,6 +31,43 @@ The finished glass should have:
 - No haze, no distortion, no uneven patches
 
 Do not make the glass pure black. Do not make it blue. Do not make it bronze. Do not change the house, trim, roof, landscaping, lighting, vehicles, or background. Keep the image photorealistic, like a professional before-and-after preview for a residential window tinting company.`,
+
+  'darkvu-10': `Edit only the window glass to simulate CoolVu DarkVu 15 ceramic window film installed on the home.
+
+The surface must behave like real architectural glass with visible light reflection.
+
+Target appearance:
+- Deep charcoal-neutral tint (~15% VLT)
+- Slight warm bronze undertone (very subtle — adds warmth without shifting the glass to brown)
+- Noticeable but controlled reflectivity (clear reflections of sky and surroundings)
+- Smooth glossy finish with defined specular highlights (light glints and sheen across the glass)
+- High contrast against window frames for a premium upgraded look
+
+Privacy effect:
+- Interior visibility significantly reduced, but NOT solid black
+- Maintain subtle depth inside the glass
+
+Critical realism rules:
+- Glass must show both reflection AND slight transparency
+- Reflections should be crisp enough to read environment shapes, but not mirror-level
+- Avoid matte, flat, or painted appearance
+- Avoid chrome/mirror or overly metallic finishes
+
+Color control:
+- Bronze warmth should appear only as a slight tone shift in highlights and reflections
+- Base tone remains charcoal-neutral
+- No orange, copper, or heavy amber cast
+
+Quality requirements:
+- Uniform tint across all panes
+- Clean edges and no distortion
+- Reflections consistent with lighting direction and scene
+- No haze, no patchiness
+
+Goal:
+Photorealistic tinted residential glass with a slightly reflective, high-end ceramic film look with a subtle warm bronze hue for added realism.
+
+Do not modify anything except the glass.`,
 };
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
