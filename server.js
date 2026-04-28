@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import multer from 'multer';
 import OpenAI, { toFile } from 'openai';
+import sharp from 'sharp';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -170,11 +171,15 @@ app.post('/api/visualize', upload.single('image'), async (req, res) => {
   }
 
   try {
-    const imageFile = await toFile(
-      req.file.buffer,
-      req.file.originalname || 'house.jpg',
-      { type: req.file.mimetype }
-    );
+    // OpenAI images/edits requires a square PNG — convert regardless of source format
+    const metadata = await sharp(req.file.buffer).metadata();
+    const size = Math.min(Math.max(metadata.width, metadata.height), 1024);
+    const pngBuffer = await sharp(req.file.buffer)
+      .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer();
+
+    const imageFile = await toFile(pngBuffer, 'house.png', { type: 'image/png' });
 
     const response = await openai.images.edit({
       model: 'gpt-image-2',
