@@ -3,8 +3,10 @@ import express from 'express';
 import multer from 'multer';
 import OpenAI, { toFile } from 'openai';
 import sharp from 'sharp';
+import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomUUID } from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -12,10 +14,17 @@ const app = express();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    cb(null, file.mimetype.startsWith('image/'));
-  },
+  fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith('image/')),
 });
+
+// ─── Film metadata ───────────────────────────────────────────────────────────
+const FILM_NAMES = {
+  'dual-reflective-15': 'Dual Reflective 15',
+  'darkvu-10':          'DarkVu 10',
+  'darkvu-20':          'DarkVu 20',
+  'dual-reflective-25': 'Dual Reflective 25',
+  'ceramic-20':         'Ceramic 20',
+};
 
 const FILM_PROMPTS = {
   'dual-reflective-15': `Transform only the window glass on this home to showcase Dual Reflective 15 solar window film.
@@ -70,30 +79,6 @@ Photorealistic tinted residential glass with a slightly reflective, high-end cer
 
 Do not modify anything except the glass.`,
 
-  'dual-reflective-25': `Transform only the window glass on this home to showcase Dual Reflective 15 solar window film.
-
-Create a premium reflective glass appearance with a sleek charcoal-silver finish that feels slightly lighter, cleaner, and more airy than a typical dark tint. The windows should look upgraded, modern, and high-performance without appearing too dark or heavy.
-
-The finished glass should have:
-- Medium charcoal-gray tone with a lighter, more refined brightness
-- Reflective surface with clear mirrored reflections of sky, clouds, trees, and surroundings
-- Subtle cool blue-gray daylight influence in reflections (very slight, not blue glass)
-- Noticeable daytime privacy, but not blacked out
-- Slight interior depth still visible through the glass
-- Soft, airy visual quality rather than dense or heavy tint
-- Consistent tint and reflectivity across all panes
-
-Frame and divider protection:
-- Keep all window frames, trim, mullions, and dividers perfectly crisp and unchanged
-- Do not apply tint over frames or grid lines
-- Preserve sharp edges and original colors of all non-glass elements
-
-Critical balance:
-- Reflection should be clear and natural, not overly dark
-- Maintain brightness and light interaction so the glass feels realistic and breathable
-
-Do not make the glass pure black. Do not make it strongly blue. Do not make it bronze. Do not change anything except the glass areas within the window panes.`,
-
   'darkvu-20': `Edit only the window glass on this home to simulate professionally installed CoolVu DarkVu 20 ceramic window film.
 
 Strict masking rule:
@@ -133,6 +118,30 @@ Ensure:
 
 Do not change anything except the glass.`,
 
+  'dual-reflective-25': `Transform only the window glass on this home to showcase Dual Reflective 15 solar window film.
+
+Create a premium reflective glass appearance with a sleek charcoal-silver finish that feels slightly lighter, cleaner, and more airy than a typical dark tint. The windows should look upgraded, modern, and high-performance without appearing too dark or heavy.
+
+The finished glass should have:
+- Medium charcoal-gray tone with a lighter, more refined brightness
+- Reflective surface with clear mirrored reflections of sky, clouds, trees, and surroundings
+- Subtle cool blue-gray daylight influence in reflections (very slight, not blue glass)
+- Noticeable daytime privacy, but not blacked out
+- Slight interior depth still visible through the glass
+- Soft, airy visual quality rather than dense or heavy tint
+- Consistent tint and reflectivity across all panes
+
+Frame and divider protection:
+- Keep all window frames, trim, mullions, and dividers perfectly crisp and unchanged
+- Do not apply tint over frames or grid lines
+- Preserve sharp edges and original colors of all non-glass elements
+
+Critical balance:
+- Reflection should be clear and natural, not overly dark
+- Maintain brightness and light interaction so the glass feels realistic and breathable
+
+Do not make the glass pure black. Do not make it strongly blue. Do not make it bronze. Do not change anything except the glass areas within the window panes.`,
+
   'ceramic-20': `Edit this exterior home photo to show the windows upgraded with professionally installed Dual Reflective 15 residential solar window film.
 
 The glass should appear moderately dark, reflective, and high-contrast, similar to premium daytime privacy window film, but slightly lighter and more natural than a heavy tint. Use a neutral charcoal-gray / silver-black tone with a controlled mirror-like finish.
@@ -155,23 +164,55 @@ Critical realism rules:
 Keep the home, roof, brick, landscaping, driveway, people, vehicles, and camera angle unchanged. Only change the window glass. The result should look like a realistic customer preview for a high-end residential window film installation.`,
 };
 
+// ─── Clients ──────────────────────────────────────────────────────────────────
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+const supabase =
+  process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
+    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+    : null;
+
+const STORAGE_BUCKET = 'coolvu-visualizations';
+
+// ─── Gallery helpers ──────────────────────────────────────────────────────────
+async function saveToGallery(id, filmId, originalBuffer, resultBuffer) {
+  await Promise.all([
+    supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(`${id}/original.png`, originalBuffer, { contentType: 'image/png' }),
+    supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(`${id}/result.png`, resultBuffer, { contentType: 'image/png' }),
+  ]);
+
+  const originalUrl = supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(`${id}/original.png`).data.publicUrl;
+  const resultUrl = supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(`${id}/result.png`).data.publicUrl;
+
+  const { error } = await supabase.from('visualizations').insert({
+    id,
+    film_id: filmId,
+    film_name: FILM_NAMES[filmId] ?? filmId,
+    original_url: originalUrl,
+    result_url: resultUrl,
+  });
+
+  if (error) throw error;
+}
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
 app.post('/api/visualize', upload.single('image'), async (req, res) => {
   const { filmId } = req.body;
 
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image provided.' });
-  }
-  if (!filmId || !FILM_PROMPTS[filmId]) {
-    return res.status(400).json({ error: 'Invalid film selection.' });
-  }
-  if (!process.env.OPENAI_API_KEY) {
-    return res.status(500).json({ error: 'Server is missing OPENAI_API_KEY.' });
-  }
+  if (!req.file) return res.status(400).json({ error: 'No image provided.' });
+  if (!filmId || !FILM_PROMPTS[filmId]) return res.status(400).json({ error: 'Invalid film selection.' });
+  if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'Server is missing OPENAI_API_KEY.' });
 
   try {
-    // OpenAI images/edits requires square PNG. Flatten to RGB (no alpha) for smaller payload.
+    // Convert to square RGB PNG for OpenAI
     const { width, height } = await sharp(req.file.buffer).metadata();
     const size = Math.min(Math.max(width ?? 1024, height ?? 1024), 1024);
     const pngBuffer = await sharp(req.file.buffer)
@@ -191,18 +232,45 @@ app.post('/api/visualize', upload.single('image'), async (req, res) => {
     });
 
     const item = response.data[0];
-    const image = item.b64_json
+    const imageDataUrl = item.b64_json
       ? `data:image/png;base64,${item.b64_json}`
       : item.url;
 
-    res.json({ success: true, image });
+    const id = randomUUID();
+    res.json({ success: true, image: imageDataUrl, id });
+
+    // Save to gallery in background — don't block the response
+    if (supabase && item.b64_json) {
+      const resultBuffer = Buffer.from(item.b64_json, 'base64');
+      saveToGallery(id, filmId, pngBuffer, resultBuffer).catch((err) =>
+        console.error('Gallery save failed:', err?.message)
+      );
+    }
   } catch (err) {
     console.error('OpenAI error:', err?.message ?? err);
-    const message = err?.error?.message ?? err?.message ?? 'Generation failed.';
-    res.status(500).json({ error: message });
+    res.status(500).json({ error: err?.error?.message ?? err?.message ?? 'Generation failed.' });
   }
 });
 
+app.get('/api/gallery', async (req, res) => {
+  if (!supabase) return res.json({ items: [] });
+
+  const { filmId, limit = 60, offset = 0 } = req.query;
+
+  let query = supabase
+    .from('visualizations')
+    .select('id, film_id, film_name, original_url, result_url, created_at')
+    .order('created_at', { ascending: false })
+    .range(Number(offset), Number(offset) + Number(limit) - 1);
+
+  if (filmId) query = query.eq('film_id', filmId);
+
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ items: data ?? [] });
+});
+
+// ─── Static (production) ──────────────────────────────────────────────────────
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'dist')));
   app.get('*', (_req, res) =>
