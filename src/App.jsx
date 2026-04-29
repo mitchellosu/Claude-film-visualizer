@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import './App.css';
 
 const FILMS = [
@@ -39,16 +39,28 @@ const FILMS = [
   },
 ];
 
+const LOADING_STEPS = [
+  'Scanning window positions…',
+  'Calculating film coverage…',
+  'Applying tint layer…',
+  'Rendering reflections…',
+  'Polishing highlights…',
+  'Finalizing details…',
+];
+
 export default function App() {
   const [photo, setPhoto] = useState(null);
   const [preview, setPreview] = useState(null);
   const [filmId, setFilmId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
 
   const fileInputRef = useRef(null);
+  const loadingRef = useRef(null);
+  const resultRef = useRef(null);
 
   const handleFile = useCallback((file) => {
     if (!file || !file.type.startsWith('image/')) return;
@@ -68,6 +80,30 @@ export default function App() {
     },
     [handleFile]
   );
+
+  // Cycle loading messages every 5s
+  useEffect(() => {
+    if (!loading) return;
+    setLoadingStep(0);
+    const id = setInterval(() => {
+      setLoadingStep((s) => Math.min(s + 1, LOADING_STEPS.length - 1));
+    }, 5000);
+    return () => clearInterval(id);
+  }, [loading]);
+
+  // Scroll to loading indicator when processing starts
+  useEffect(() => {
+    if (loading) {
+      setTimeout(() => loadingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+    }
+  }, [loading]);
+
+  // Scroll to result when it arrives
+  useEffect(() => {
+    if (result) {
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+    }
+  }, [result]);
 
   const handleApply = async () => {
     if (!photo || !filmId || loading) return;
@@ -131,10 +167,7 @@ export default function App() {
           <div className="step-label">Step 1 — Upload Your Photo</div>
           <div
             className={`upload-area${preview ? ' has-photo' : ''}${dragOver ? ' drag-over' : ''}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             onClick={() => !preview && fileInputRef.current?.click()}
@@ -146,17 +179,13 @@ export default function App() {
               style={{ display: 'none' }}
               onChange={(e) => handleFile(e.target.files[0])}
             />
-
             {preview ? (
               <>
                 <img src={preview} alt="Uploaded house" className="upload-preview" />
                 <div className="upload-change-row">
                   <button
                     className="btn-link"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      fileInputRef.current?.click();
-                    }}
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                   >
                     Change photo
                   </button>
@@ -186,10 +215,7 @@ export default function App() {
               >
                 <div
                   className="film-swatch"
-                  style={{
-                    background: film.swatch,
-                    borderColor: film.swatchBorder,
-                  }}
+                  style={{ background: film.swatch, borderColor: film.swatchBorder }}
                 />
                 <div className="film-card-name">{film.name}</div>
                 <div className="film-card-desc">{film.desc}</div>
@@ -216,17 +242,18 @@ export default function App() {
         )}
 
         {loading && (
-          <div className="loading">
-            <div className="spinner" />
-            <div className="loading-title">Visualizing your upgrade…</div>
-            <div className="loading-sub">
-              AI is applying {selectedFilm?.name} to your windows
+          <div className="loading" ref={loadingRef}>
+            <div className="loading-film-name">{selectedFilm?.name}</div>
+            <div className="loading-step-text">{LOADING_STEPS[loadingStep]}</div>
+            <div className="progress-bar">
+              <div className="progress-bar-fill" key={loading} />
             </div>
+            <div className="loading-est">Usually takes 30–45 seconds</div>
           </div>
         )}
 
         {result && (
-          <div className="results">
+          <div className="results" ref={resultRef}>
             <div className="results-heading">Your Visualization</div>
             <div className="comparison">
               <div className="comparison-item">
@@ -244,10 +271,7 @@ export default function App() {
               </button>
               <button
                 className="btn-retry"
-                onClick={() => {
-                  setResult(null);
-                  setFilmId(null);
-                }}
+                onClick={() => { setResult(null); setFilmId(null); }}
               >
                 Try Another Film
               </button>

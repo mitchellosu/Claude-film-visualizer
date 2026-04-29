@@ -171,12 +171,13 @@ app.post('/api/visualize', upload.single('image'), async (req, res) => {
   }
 
   try {
-    // OpenAI images/edits requires a square PNG — convert regardless of source format
-    const metadata = await sharp(req.file.buffer).metadata();
-    const size = Math.min(Math.max(metadata.width, metadata.height), 1024);
+    // OpenAI images/edits requires square PNG. Flatten to RGB (no alpha) for smaller payload.
+    const { width, height } = await sharp(req.file.buffer).metadata();
+    const size = Math.min(Math.max(width ?? 1024, height ?? 1024), 1024);
     const pngBuffer = await sharp(req.file.buffer)
-      .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .png()
+      .resize(size, size, { fit: 'contain', background: { r: 255, g: 255, b: 255 } })
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .png({ compressionLevel: 7 })
       .toBuffer();
 
     const imageFile = await toFile(pngBuffer, 'house.png', { type: 'image/png' });
