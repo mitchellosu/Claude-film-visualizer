@@ -172,7 +172,7 @@ const supabase =
     ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
     : null;
 
-const STORAGE_BUCKET = 'coolvu-visualizations';
+const STORAGE_BUCKET = 'coolvu-visualization';
 
 // ─── Gallery helpers ──────────────────────────────────────────────────────────
 async function saveToGallery(id, filmId, originalBuffer, resultBuffer) {
