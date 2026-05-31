@@ -2,8 +2,10 @@ import 'dotenv/config';
 import express from 'express';
 import multer from 'multer';
 import OpenAI, { toFile } from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 import sharp from 'sharp';
 import { createClient } from '@supabase/supabase-js';
+import { google } from 'googleapis';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
@@ -11,6 +13,7 @@ import { randomUUID } from 'crypto';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+app.use(express.json());
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
@@ -172,7 +175,140 @@ const supabase =
     ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
     : null;
 
+const anthropic =
+  process.env.ANTHROPIC_API_KEY
+    ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    : null;
+
+// Gmail OAuth2 client — only active when credentials are present
+let gmail = null;
+if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) {
+  const gmailAuth = new google.auth.OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET
+  );
+  gmailAuth.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
+  gmail = google.gmail({ version: 'v1', auth: gmailAuth });
+}
+
 const STORAGE_BUCKET = 'coolvu-visualization';
+
+// ─── Newsletter helpers ───────────────────────────────────────────────────────
+
+// Pre-mapped sender → category (avoids API calls for known newsletters)
+const SENDER_CATEGORIES = {
+  'dumbzone+the-dumb-zone@substack.com':    'Sports',
+  'numlock@substack.com':                   'Sports',
+  'nanewsletter@nashownotes.com':           'Sports',
+  'twiai@substack.com':                     'Tech & AI',
+  'agentai@mail.beehiiv.com':               'Tech & AI',
+  'list@ben-evans.com':                     'Tech & AI',
+  'no-reply@notification.circle.so':        'Tech & AI',
+  'nick+news@leftclick.ai':                 'Tech & AI',
+  'hi@mikefutia.com':                       'Tech & AI',
+  'ownedoperatedinsights@mail.beehiiv.com': 'Business',
+  'openresidency@mail.beehiiv.com':         'Business',
+  'cheapsoftwarestocks@substack.com':       'Business',
+  'wyatt@alts.co':                          'Business',
+  'cffp@email.kaplanprofessional.com':      'Business',
+  'sandcastles-0faa9b@mail.beehiiv.com':    'Business',
+  'james@theadvisorcoach.com':              'Business',
+  'austin@ownrops.com':                     'Business',
+  'howiwrite@substack.com':                 'Create',
+  'matterreader@substack.com':              'Create',
+  'wavy@mail.beehiiv.com':                  'Create',
+  'hypefury@mail.beehiiv.com':              'Create',
+  'kevin@kevinbellco.com':                  'Create',
+  'marketing-examined@mail.beehiiv.com':    'Create',
+  'new-era-calum-johnson-show@mail.beehiiv.com': 'Create',
+  'gael@authorityhacker.com':               'Create',
+  'newsletter@midwayhollowcrimewatch.com':  'Local',
+  'stephanie@pinkston-harris.com':          'Local',
+  'ScissorsScotch@marketing.mytime.com':    'Local',
+};
+
+function parseSender(fromHeader) {
+  if (!fromHeader) return { name: '', email: '' };
+  const match = fromHeader.match(/^"?([^"<]*)"?\s*<?([^>]*)>?$/);
+  if (!match) return { name: '', email: fromHeader.trim() };
+  const name = match[1].trim().replace(/^"|"$/g, '');
+  const email = match[2].trim() || fromHeader.trim();
+  return { name, email };
+}
+
+function decodeBase64Url(str) {
+  return Buffer.from(str.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+}
+
+function extractHtmlBody(payload) {
+  if (!payload) return null;
+  if (payload.mimeType === 'text/html' && payload.body?.data) {
+    return decodeBase64Url(payload.body.data);
+  }
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      const result = extractHtmlBody(part);
+      if (result) return result;
+    }
+  }
+  return null;
+}
+
+function extractTextBody(payload) {
+  if (!payload) return null;
+  if (payload.mimeType === 'text/plain' && payload.body?.data) {
+    return decodeBase64Url(payload.body.data);
+  }
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      const result = extractTextBody(part);
+      if (result) return result;
+    }
+  }
+  return null;
+}
+
+async function categorizeBatch(items) {
+  if (!anthropic || items.length === 0) return;
+
+  const prompt = items.map((item, i) =>
+    `${i + 1}. From: "${item.sender_name}" <${item.sender_email}>\n   Subject: ${item.subject}\n   Snippet: ${item.snippet.slice(0, 120)}`
+  ).join('\n\n');
+
+  const message = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 512,
+    messages: [{
+      role: 'user',
+      content: `Categorize each newsletter into exactly one category: Sports, Tech & AI, Business, Create, or Local.
+
+Sports = sports, games, entertainment, humor, memes, pop culture
+Tech & AI = technology, AI, software, startups, product launches
+Business = entrepreneurship, investing, finance, marketing, operations
+Create = writing, design, content creation, personal growth, craft
+Local = local news, neighborhood, community, regional
+
+Respond with ONLY a JSON array in order: [{"id":"...","category":"..."},...]
+
+Newsletters:
+${prompt}`,
+    }],
+  });
+
+  const text = message.content[0].type === 'text' ? message.content[0].text : '';
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return;
+
+  const results = JSON.parse(jsonMatch[0]);
+  const VALID = new Set(['Sports', 'Tech & AI', 'Business', 'Create', 'Local']);
+
+  for (const r of results) {
+    const idx = Number(r.id) - 1;
+    if (idx >= 0 && idx < items.length && VALID.has(r.category)) {
+      items[idx]._category = r.category;
+    }
+  }
+}
 
 // ─── Gallery helpers ──────────────────────────────────────────────────────────
 async function saveToGallery(id, filmId, originalBuffer, resultBuffer) {
@@ -268,6 +404,276 @@ app.get('/api/gallery', async (req, res) => {
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
   res.json({ items: data ?? [] });
+});
+
+// ─── Newsletter routes ────────────────────────────────────────────────────────
+
+// POST /api/newsletters/sync — fetch latest threads from Gmail, cache in Supabase
+app.post('/api/newsletters/sync', async (req, res) => {
+  if (!gmail)  return res.status(503).json({ error: 'Gmail not configured.' });
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+
+  try {
+    const { pageToken } = req.body ?? {};
+
+    // Fetch thread list (metadata only — fast)
+    const listRes = await gmail.users.threads.list({
+      userId: 'me',
+      maxResults: 100,
+      pageToken: pageToken || undefined,
+      q: 'label:Label_8322070601344068830 OR (has:list-unsubscribe -from:me)',
+    });
+
+    const threads = listRes.data.threads ?? [];
+    const nextPageToken = listRes.data.nextPageToken ?? null;
+
+    if (threads.length === 0) {
+      return res.json({ synced: 0, skipped: 0, nextPageToken });
+    }
+
+    // Collect all message IDs we already have
+    const threadIds = threads.map((t) => t.id);
+    const { data: existing } = await supabase
+      .from('newsletters')
+      .select('gmail_message_id')
+      .in('gmail_message_id', threadIds);
+
+    const existingIds = new Set((existing ?? []).map((r) => r.gmail_message_id));
+
+    const newThreadIds = threadIds.filter((id) => !existingIds.has(id));
+    let synced = 0;
+
+    if (newThreadIds.length > 0) {
+      // Fetch metadata for new threads in parallel (capped at 20 at a time)
+      const BATCH = 20;
+      const newItems = [];
+
+      for (let i = 0; i < newThreadIds.length; i += BATCH) {
+        const batch = newThreadIds.slice(i, i + BATCH);
+        const fetched = await Promise.all(
+          batch.map((id) =>
+            gmail.users.threads.get({
+              userId: 'me',
+              id,
+              format: 'metadata',
+              metadataHeaders: ['From', 'Subject', 'Date'],
+            }).then((r) => r.data).catch(() => null)
+          )
+        );
+
+        for (const thread of fetched) {
+          if (!thread) continue;
+          const msg = thread.messages?.[0];
+          if (!msg) continue;
+
+          const headers = {};
+          for (const h of msg.payload?.headers ?? []) {
+            headers[h.name.toLowerCase()] = h.value;
+          }
+
+          const { name: senderName, email: senderEmail } = parseSender(headers['from'] ?? '');
+          const subject = headers['subject'] ?? '(no subject)';
+          const receivedAt = new Date(Number(msg.internalDate)).toISOString();
+          const snippet = (msg.snippet ?? '').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+
+          const category = SENDER_CATEGORIES[senderEmail] ?? null;
+
+          newItems.push({
+            gmail_message_id: thread.id,
+            sender_email: senderEmail,
+            sender_name: senderName || senderEmail.split('@')[0],
+            subject,
+            snippet,
+            received_at: receivedAt,
+            category,
+            _category: category, // placeholder for AI categorization
+          });
+        }
+      }
+
+      // AI-categorize any that didn't match the known-sender map
+      const uncategorized = newItems.filter((it) => !it.category);
+      if (uncategorized.length > 0 && anthropic) {
+        const CLAUDE_BATCH = 20;
+        for (let i = 0; i < uncategorized.length; i += CLAUDE_BATCH) {
+          const slice = uncategorized.slice(i, i + CLAUDE_BATCH);
+          // Pass 1-based index as id for mapping
+          const indexed = slice.map((item, idx) => ({ ...item, id: String(idx + 1) }));
+          await categorizeBatch(indexed).catch(() => {});
+          for (let j = 0; j < slice.length; j++) {
+            slice[j].category = indexed[j]._category ?? null;
+          }
+        }
+      }
+
+      // Upsert newsletters
+      const rows = newItems.map(({ _category, ...item }) => item);
+      const { error: insertErr } = await supabase
+        .from('newsletters')
+        .upsert(rows, { onConflict: 'gmail_message_id' });
+
+      if (insertErr) throw insertErr;
+      synced = rows.length;
+
+      // Update newsletter_senders aggregate
+      const senderMap = {};
+      for (const item of newItems) {
+        if (!senderMap[item.sender_email]) {
+          senderMap[item.sender_email] = {
+            email: item.sender_email,
+            display_name: item.sender_name,
+            last_seen: item.received_at,
+            primary_category: item.category,
+            _count: 0,
+          };
+        }
+        const s = senderMap[item.sender_email];
+        s._count++;
+        if (item.received_at > s.last_seen) s.last_seen = item.received_at;
+      }
+
+      // Fetch current counts to add to
+      const senderEmails = Object.keys(senderMap);
+      const { data: existingSenders } = await supabase
+        .from('newsletter_senders')
+        .select('email, total_count, unread_count')
+        .in('email', senderEmails);
+
+      const existingSenderMap = {};
+      for (const s of existingSenders ?? []) existingSenderMap[s.email] = s;
+
+      const senderRows = Object.values(senderMap).map((s) => {
+        const prev = existingSenderMap[s.email];
+        return {
+          email: s.email,
+          display_name: s.display_name,
+          last_seen: s.last_seen,
+          primary_category: s.primary_category,
+          total_count: (prev?.total_count ?? 0) + s._count,
+          unread_count: (prev?.unread_count ?? 0) + s._count,
+        };
+      });
+
+      await supabase
+        .from('newsletter_senders')
+        .upsert(senderRows, { onConflict: 'email' });
+    }
+
+    res.json({ synced, skipped: threads.length - newThreadIds.length, nextPageToken });
+  } catch (err) {
+    console.error('Newsletter sync error:', err?.message ?? err);
+    res.status(500).json({ error: err?.message ?? 'Sync failed.' });
+  }
+});
+
+// GET /api/newsletters — list senders + filtered newsletter cards
+app.get('/api/newsletters', async (req, res) => {
+  if (!supabase) return res.json({ senders: [], newsletters: [], total: 0 });
+
+  const { senderEmail, category, isRead, limit = 50, offset = 0 } = req.query;
+
+  const [sendersResult, newslettersResult] = await Promise.all([
+    supabase
+      .from('newsletter_senders')
+      .select('email, display_name, unread_count, total_count, primary_category')
+      .order('last_seen', { ascending: false })
+      .limit(200),
+
+    (() => {
+      let q = supabase
+        .from('newsletters')
+        .select('id, gmail_message_id, sender_email, sender_name, subject, snippet, received_at, category, is_read', { count: 'exact' })
+        .order('received_at', { ascending: false })
+        .range(Number(offset), Number(offset) + Number(limit) - 1);
+
+      if (senderEmail) q = q.eq('sender_email', senderEmail);
+      if (category)    q = q.eq('category', category);
+      if (isRead !== undefined) q = q.eq('is_read', isRead === 'true');
+
+      return q;
+    })(),
+  ]);
+
+  res.json({
+    senders: sendersResult.data ?? [],
+    newsletters: newslettersResult.data ?? [],
+    total: newslettersResult.count ?? 0,
+  });
+});
+
+// GET /api/newsletters/:messageId — lazy-load full body
+app.get('/api/newsletters/:messageId', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+
+  const { messageId } = req.params;
+
+  const { data: row, error } = await supabase
+    .from('newsletters')
+    .select('*')
+    .eq('gmail_message_id', messageId)
+    .single();
+
+  if (error || !row) return res.status(404).json({ error: 'Newsletter not found.' });
+
+  if (row.full_content_fetched) return res.json(row);
+
+  if (!gmail) return res.json(row); // return metadata even without Gmail
+
+  try {
+    const threadData = await gmail.users.threads.get({
+      userId: 'me',
+      id: messageId,
+      format: 'full',
+    });
+
+    const msg = threadData.data.messages?.at(-1);
+    const bodyHtml = msg ? extractHtmlBody(msg.payload) : null;
+    const bodyText = msg ? extractTextBody(msg.payload) : null;
+
+    const { data: updated } = await supabase
+      .from('newsletters')
+      .update({ body_html: bodyHtml, full_content_fetched: true })
+      .eq('gmail_message_id', messageId)
+      .select()
+      .single();
+
+    res.json(updated ?? { ...row, body_html: bodyHtml, body_text: bodyText });
+  } catch (err) {
+    console.error('Newsletter body fetch error:', err?.message);
+    res.json(row); // fall back to metadata
+  }
+});
+
+// PATCH /api/newsletters/:messageId/read — mark as read
+app.patch('/api/newsletters/:messageId/read', async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Supabase not configured.' });
+
+  const { messageId } = req.params;
+
+  const { data: row } = await supabase
+    .from('newsletters')
+    .select('sender_email, is_read')
+    .eq('gmail_message_id', messageId)
+    .single();
+
+  if (!row) return res.status(404).json({ error: 'Not found.' });
+  if (row.is_read) return res.json({ ok: true }); // already read
+
+  // Fetch current unread count then decrement
+  const { data: senderRow } = await supabase
+    .from('newsletter_senders')
+    .select('unread_count')
+    .eq('email', row.sender_email)
+    .single();
+
+  const newCount = Math.max((senderRow?.unread_count ?? 1) - 1, 0);
+
+  await Promise.all([
+    supabase.from('newsletters').update({ is_read: true }).eq('gmail_message_id', messageId),
+    supabase.from('newsletter_senders').update({ unread_count: newCount }).eq('email', row.sender_email),
+  ]);
+
+  res.json({ ok: true });
 });
 
 // ─── Static (production) ──────────────────────────────────────────────────────

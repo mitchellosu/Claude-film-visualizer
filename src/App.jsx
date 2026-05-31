@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import './App.css';
+import NewsletterReader from './NewsletterReader';
 
 const FILMS = [
   {
@@ -270,13 +271,18 @@ export default function App() {
           <button className={`nav-tab${view === 'gallery' ? ' active' : ''}`} onClick={() => setView('gallery')}>
             Gallery
           </button>
+          <button className={`nav-tab${view === 'read' ? ' active' : ''}`} onClick={() => setView('read')}>
+            Read
+          </button>
         </nav>
         <a href="#consultation" className="header-cta" onClick={(e) => { if (view !== 'create') { e.preventDefault(); setView('create'); setTimeout(() => document.getElementById('consultation')?.scrollIntoView({ behavior: 'smooth' }), 50); } }}>
           Book Consultation
         </a>
       </header>
 
-      {view === 'gallery' ? (
+      {view === 'read' ? (
+        <NewsletterReader />
+      ) : view === 'gallery' ? (
         <Gallery films={FILMS} highlightId={lastId} />
       ) : (
         <>
